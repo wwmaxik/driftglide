@@ -26,7 +26,7 @@
 
 **DriftGlide** — демон навигации для Wayland-композиторов, реализующий жестовую полоску навигации (Navigation Bar), переключатель окон (Task Switcher) и функцию **Circle to Search** с интеграцией Google Gemini Vision API для анализа выделенных областей экрана.
 
-Проект является компаньоном оконного менеджера [driftwm](https://github.com/wwmaxik/driftwm) и взаимодействует с ним через IPC-сокет.
+Проект является компаньоном оконного менеджера [driftwm](https://github.com/malbiruk/driftwm) и взаимодействует с ним через IPC-сокет.
 
 ## ✨ Возможности
 

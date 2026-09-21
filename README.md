@@ -26,7 +26,7 @@
 
 **DriftGlide** is a navigation daemon for Wayland compositors providing a fluid gesture navigation bar (pill), an integrated Task Switcher, and **Circle to Search** with Google Gemini Vision AI integration to analyze captured screen regions.
 
-It serves as a companion daemon for the [driftwm](https://github.com/wwmaxik/driftwm) window manager and communicates with it via an IPC socket.
+It serves as a companion daemon for the [driftwm](https://github.com/malbiruk/driftwm) window manager and communicates with it via an IPC socket.
 
 ## ✨ Features
 
