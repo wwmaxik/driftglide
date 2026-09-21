@@ -139,5 +139,5 @@ API-ключ Gemini можно задать тремя способами:
 ---
 
 <p align="center">
-  <i>Сделано с ❤️ для Linux Wayland</i>
+  <i>Сделано с ❤️ для DriftWM</i>
 </p>

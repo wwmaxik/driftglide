@@ -139,5 +139,5 @@ This project is licensed under the **GNU General Public License v3.0** (GPL-3.0)
 ---
 
 <p align="center">
-  <i>Built with ❤️ for Linux Wayland</i>
+  <i>Built with ❤️ for DriftWM</i>
 </p>
