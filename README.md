@@ -6,157 +6,138 @@
 </p>
 
 <p align="center">
+  <a href="README.md"><b>English</b></a> | <a href="README_RU.md"><b>Русский</b></a>
+</p>
+
+<p align="center">
   <img src="https://img.shields.io/badge/platform-Linux%20Wayland-blue" alt="Platform">
   <img src="https://img.shields.io/badge/language-Rust-orange" alt="Language">
   <img src="https://img.shields.io/badge/rendering-tiny--skia-green" alt="Renderer">
   <img src="https://img.shields.io/badge/AI-Gemini%20Vision-purple" alt="AI">
-  <img src="https://img.shields.io/badge/license-MIT-lightgrey" alt="License">
+  <img src="https://img.shields.io/badge/license-GPL--3.0-blue" alt="License">
 </p>
 
 ---
 
-**DriftGlide** — демон навигации для Wayland-композиторов, реализующий жестовую навигационную полоску (Navigation Bar), переключатель окон (Task Switcher) и функцию **Circle to Search** с интеграцией Google Gemini Vision API для анализа выделенных областей экрана.
+**DriftGlide** is a navigation daemon for Wayland compositors providing a fluid gesture navigation bar (pill), an integrated Task Switcher, and **Circle to Search** with Google Gemini Vision AI integration to analyze captured screen regions.
 
-Проект является компаньоном оконного менеджера [driftwm](https://github.com/wwmaxik/driftwm) и взаимодействует с ним через IPC-сокет.
+It serves as a companion daemon for the [driftwm](https://github.com/wwmaxik/driftwm) window manager and communicates with it via an IPC socket.
 
-## ✨ Возможности
+## ✨ Features
 
 ### 🏠 Gesture Navigation Bar
-- Нижняя интерактивная навигационная полоска с плавной анимацией
-- **Свайп влево/вправо** — быстрое переключение между окнами (`focus_prev` / `focus_next`)
-- **Свайп вверх** — открытие переключателя задач (Task Switcher)
-- **Долгое нажатие** — активация Circle to Search
-- Поддержка сенсорных экранов (тач) и мыши/тачпада
-- Плавная пружинная физика возврата полоски с инерцией
+- Interactive bottom navigation bar with fluid physics
+- **Swipe Left / Right** — fast window switching (`focus_prev` / `focus_next`)
+- **Swipe Up** — open the Task Switcher
+- **Long Press** — activate Circle to Search
+- Full support for touchscreens, touchpads, and mouse
+- Smooth damped harmonic spring physics with inertia
 
 ### 🔲 Task Switcher
-- Полноэкранный оверлей со списком открытых окон
-- Получение списка окон через IPC от driftwm
-- Клик по окну — фокусировка и закрытие свитчера
-- Автоматическое скрытие по таймауту неактивности
+- Full-screen overlay displaying open client windows
+- Window list queried directly from driftwm via IPC
+- Click window card to focus and close switcher
+- Automatic idle dismissal timeout
 
 ### 🔍 Circle to Search + Gemini Vision
-- Захват скриншота экрана (`zwlr_screencopy_v1` / `spectacle` / `grim`)
-- Обводка области экрана произвольным лассо (пальцем или мышью)
-- Вырезание фрагмента и отправка в **Google Gemini Vision API**
-- Плавающее окно чата с Gemini:
-  - Полноценный Markdown-рендеринг ответов (заголовки, код, списки, цитаты, разделители)
-  - Диалоговый режим с историей сообщений
-  - Миниатюра вырезанного фрагмента экрана
-  - Drag-перемещение окна за шапку
-  - Сворачивание в компактный плавающий кружок
-  - Прокрутка колесом мыши и скроллбаром
-  - Выбор модели Gemini через интерактивные чипы
-  - Настройка API-ключа через UI
+- Seamless screen capture (`zwlr_screencopy_v1` with `spectacle` / `grim` fallbacks)
+- Freeform lasso selection with finger or mouse cursor
+- Instant fragment crop with automatic clipboard copy (`wl-copy`)
+- Floating Gemini Vision chat window:
+  - Full Markdown rendering (headers, inline code, fenced code blocks, lists, quotes, dividers)
+  - Interactive multi-turn conversation history
+  - Screen crop preview thumbnail
+  - Draggable window header
+  - Minimizable to floating bubble
+  - Smooth mouse wheel scrolling and slim scrollbar with auto-scroll while selecting
+  - Model selection via interactive chips (Gemini 3.1 Flash Lite / Gemini 3.5 Flash Lite)
+  - In-app API key configuration
 
-### ⌨️ Полная поддержка клавиатуры
-- `Ctrl+A` / `Ctrl+Ф` — выделить всё (текст ввода или ответ)
-- `Ctrl+C` / `Ctrl+С` — копировать выделенный текст
-- `Ctrl+X` / `Ctrl+Ч` — вырезать
-- `Ctrl+V` / `Ctrl+М` — вставить из буфера обмена
-- `Shift+←/→/Home/End` — выделение с клавиатуры
-- Двойной клик — выделение слова, тройной — всего текста
-- Drag-выделение текста мышью в поле ввода и в области ответа с автоскроллом
+### ⌨️ Full Keyboard & Selection Support
+- `Ctrl+A` / `Ctrl+Ф` — select all (in input field or chat response)
+- `Ctrl+C` / `Ctrl+С` — copy selected text (or full response)
+- `Ctrl+X` / `Ctrl+Ч` — cut text
+- `Ctrl+V` / `Ctrl+М` — paste from clipboard
+- `Shift+←/→/Home/End` — keyboard text selection
+- Double click to select word, triple click to select all
+- Mouse drag text selection in input field and chat response with auto-scrolling
 
-## 📋 Системные требования
+## 📋 Requirements
 
-- **Linux** с **Wayland**-композитором
-- Поддержка протокола `wlr-layer-shell-v1` (Sway, Hyprland, wlroots-based, KDE Plasma 6+)
-- **Rust** ≥ 1.70 (для сборки)
-- `wl-copy` / `wl-paste` — для работы с буфером обмена
-- `spectacle` или `grim` — для захвата экрана (если `zwlr_screencopy_v1` недоступен)
+- **Linux** with a **Wayland** compositor
+- Compositor support for `wlr-layer-shell-v1` (Sway, Hyprland, wlroots-based, KDE Plasma 6+)
+- **Rust** ≥ 1.70 & `cargo`
+- `wl-copy` / `wl-paste` (for clipboard integration)
+- `spectacle` or `grim` (for screen capture fallback if `zwlr_screencopy_v1` is unavailable)
 
-## 🚀 Сборка и запуск
+## 🚀 Build & Installation
+
+### Using Makefile (Recommended)
 
 ```bash
-# Клонирование
+# Clone repository
 git clone https://github.com/wwmaxik/driftglide.git
 cd driftglide
 
-# Сборка
+# Build release binary
+make build
+
+# Install to /usr/local/bin (requires sudo)
+sudo make install
+```
+
+Custom prefix installation:
+```bash
+make PREFIX=/usr install
+```
+
+### Manual Cargo Build
+
+```bash
 cargo build --release
-
-# Запуск
-./target/release/driftglide
+cp target/release/driftglide /usr/local/bin/
 ```
 
-### Переменные окружения
+## 🔄 Autostart in driftwm
 
-| Переменная | Описание |
+To launch DriftGlide automatically with **driftwm**, add it to your `autostart` list in `~/.config/driftwm/config.toml`:
+
+```toml
+autostart = ["driftglide"]
+```
+
+Or along with other services:
+
+```toml
+autostart = ["waybar", "driftglide"]
+```
+
+## ⚙️ Configuration & Environment
+
+| Variable | Description |
 |---|---|
-| `GEMINI_API_KEY` | API-ключ Google Gemini (или сохраните в `~/.config/driftglide/gemini_key`) |
-| `DRIFTWM_SOCKET` | Путь к IPC-сокету driftwm (определяется автоматически) |
-| `RUST_LOG` | Уровень логирования (`driftglide=info`, `driftglide=debug`) |
+| `GEMINI_API_KEY` | Google Gemini API key (or saved in `~/.config/driftglide/gemini_key`) |
+| `DRIFTWM_SOCKET` | Path to driftwm IPC socket (detected automatically) |
+| `RUST_LOG` | Logging verbosity (`driftglide=info`, `driftglide=debug`) |
 
-## ⚙️ Конфигурация
+### Gemini API Key Setup
+You can provide your Gemini API key in three ways:
+1. Environment variable: `export GEMINI_API_KEY="your-key"`
+2. Configuration file: store it in `~/.config/driftglide/gemini_key`
+3. UI: Click ⚙ in the Gemini window and paste your key
 
-API-ключ Gemini можно задать тремя способами:
-1. Переменная окружения `GEMINI_API_KEY`
-2. Файл `~/.config/driftglide/gemini_key`
-3. Через UI — нажмите ⚙ в окне Gemini и введите ключ
+## 🤝 Contributing
 
-Модель Gemini выбирается через интерактивные чипы в настройках окна:
-- **Gemini 3.1 Flash Lite** (по умолчанию)
-- **Gemini 3.5 Flash Lite**
+Contributions are warmly welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) (or [CONTRIBUTING_RU.md](CONTRIBUTING_RU.md)) for guidelines, development workflow, and coding standards.
 
-## 🏗️ Архитектура
+Please review our [Code of Conduct](CODE_OF_CONDUCT.md).
 
-```
-src/
-├── main.rs              # Точка входа, event loop (calloop)
-├── config.rs            # Конфигурация и тема оформления
-├── gestures.rs          # Распознавание жестов (свайпы, долгое нажатие, флики)
-├── search.rs            # Circle to Search (лассо, скриншот, кроп)
-├── ipc.rs               # IPC-клиент для связи с driftwm
-├── gemini/
-│   ├── mod.rs
-│   ├── client.rs        # HTTP-клиент Gemini Vision API
-│   └── window.rs        # Состояние и логика окна Gemini (ввод, выделение, чат)
-├── render/
-│   ├── mod.rs
-│   ├── text.rs          # Рендеринг текста через fontdue
-│   ├── markdown.rs      # Layout и рендеринг Markdown
-│   ├── gemini.rs        # Отрисовка окна Gemini (UI, кнопки, скроллбар)
-│   ├── pill.rs          # Отрисовка навигационной полоски
-│   ├── lasso.rs         # Отрисовка лассо и скриншота
-│   ├── launcher.rs      # Отрисовка Task Switcher
-│   └── icon.rs          # Векторные иконки (шестерёнка, искра, лупа и др.)
-└── wayland/
-    ├── mod.rs           # AppState, Wayland Dispatch (pointer, touch, keyboard)
-    ├── layer_surface.rs # Создание Layer Shell поверхностей
-    ├── shm.rs           # Тройная буферизация SHM для плавного рендеринга
-    ├── screencopy.rs    # Захват экрана через zwlr_screencopy_v1
-    └── touch.rs         # Вспомогательные утилиты тач-ввода
-```
+## 📄 License
 
-### Стек технологий
-
-| Компонент | Технология |
-|---|---|
-| Дисплейный протокол | Wayland (`wayland-client`, `wlr-layer-shell-v1`, `wlr-screencopy-v1`) |
-| Event loop | `calloop` + `calloop-wayland-source` |
-| 2D рендеринг | `tiny-skia` (CPU, без GPU) |
-| Шрифты | `fontdue` (растеризация) + `resvg` (SVG) |
-| Клавиатура | `xkbcommon` (XKB раскладки, модификаторы) |
-| AI | Google Gemini Vision API (HTTP + JSON) |
-| IPC | Unix Domain Socket (JSON-протокол с driftwm) |
-| Буфер обмена | `wl-copy` / `wl-paste` (CLI) |
-
-## 🎨 Дизайн
-
-- Премиальная тёмная тема с глубокими графитовыми оттенками
-- Сапфировый акцентный цвет (`#4086F4`)
-- Скруглённые элементы с деликатными тенями
-- Плавные физические анимации открытия/закрытия/сворачивания
-- Минималистичный полупрозрачный скроллбар
-- Мягкая контрастная подсветка выделения текста
-
-## 📄 Лицензия
-
-MIT License © 2026
+This project is licensed under the **GNU General Public License v3.0** (GPL-3.0) — see the [LICENSE](LICENSE) file for details.
 
 ---
 
 <p align="center">
-  <i>Сделано с ❤️ для Linux Wayland</i>
+  <i>Built with ❤️ for Linux Wayland</i>
 </p>

@@ -2,6 +2,9 @@
 name = "driftglide"
 version = "0.1.0"
 edition = "2021"
+description = "Gesture navigation bar & Circle to Search with Gemini Vision for Linux Wayland"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/wwmaxik/driftglide"
 
 [dependencies]
 wayland-client = "0.31"
