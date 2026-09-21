@@ -1,0 +1,24 @@
+[package]
+name = "driftglide"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+wayland-client = "0.31"
+wayland-cursor = "0.31"
+wayland-protocols = { version = "0.32", features = ["client"] }
+wayland-protocols-wlr = { version = "0.3", features = ["client"] }
+calloop = "0.13"
+calloop-wayland-source = "0.3"
+tiny-skia = "0.12"
+memmap2 = "0.9"
+rustix = { version = "0.38", features = ["shm", "fs"] }
+tempfile = "3"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+image = { version = "0.25", default-features = false, features = ["png"] }
+fontdue = "0.9.4"
+xkbcommon = "0.9.0"
+resvg = "0.48"
