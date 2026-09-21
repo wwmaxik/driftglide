@@ -10,6 +10,7 @@
 </p>
 
 <p align="center">
+  <img src="https://img.shields.io/badge/статус-Beta-yellow" alt="Статус: Beta">
   <img src="https://img.shields.io/badge/platform-Linux%20Wayland-blue" alt="Платформа">
   <img src="https://img.shields.io/badge/language-Rust-orange" alt="Язык">
   <img src="https://img.shields.io/badge/rendering-tiny--skia-green" alt="Рендерер">
@@ -18,6 +19,10 @@
 </p>
 
 ---
+
+> [!NOTE]
+> **Статус проекта: Beta**  
+> DriftGlide находится на стадии активной **Beta**-разработки. Проект разрабатывается в первую очередь для **ноутбуков с сенсорным экраном (тачскрином) и устройств-трансформеров (2-в-1)**, сохраняя при этом полную поддержку мыши и тачпада.
 
 **DriftGlide** — демон навигации для Wayland-композиторов, реализующий жестовую полоску навигации (Navigation Bar), переключатель окон (Task Switcher) и функцию **Circle to Search** с интеграцией Google Gemini Vision API для анализа выделенных областей экрана.
 

@@ -10,6 +10,7 @@
 </p>
 
 <p align="center">
+  <img src="https://img.shields.io/badge/status-Beta-yellow" alt="Status: Beta">
   <img src="https://img.shields.io/badge/platform-Linux%20Wayland-blue" alt="Platform">
   <img src="https://img.shields.io/badge/language-Rust-orange" alt="Language">
   <img src="https://img.shields.io/badge/rendering-tiny--skia-green" alt="Renderer">
@@ -18,6 +19,10 @@
 </p>
 
 ---
+
+> [!NOTE]
+> **Project Status: Beta**  
+> DriftGlide is currently in active **Beta** development. It is designed and developed primarily for **touchscreen laptops and 2-in-1 convertible devices**, while maintaining full support for traditional touchpad and mouse interactions.
 
 **DriftGlide** is a navigation daemon for Wayland compositors providing a fluid gesture navigation bar (pill), an integrated Task Switcher, and **Circle to Search** with Google Gemini Vision AI integration to analyze captured screen regions.
 
