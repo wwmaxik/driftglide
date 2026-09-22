@@ -35,6 +35,8 @@ pub struct Config {
     pub switcher_idle_timeout_ms: u64,
     /// Время неактивности навигационной пилюли до автоматического скрытия (мс, 0 = не скрывать)
     pub pill_idle_timeout_ms: u64,
+    /// Максимальный интервал между нажатиями для двойного клика (мс)
+    pub double_click_timeout_ms: u64,
 
     /// Путь к Unix-сокету driftwm
     pub ipc_socket_path: PathBuf,
@@ -113,6 +115,7 @@ impl Default for Config {
             deadzone_threshold: 7.0,
             switcher_idle_timeout_ms: 3500, // 3.5 секунды авто-скрытия при бездействии
             pill_idle_timeout_ms: 2500,     // 2.5 секунды до скрытия пилюли в простое
+            double_click_timeout_ms: 280,   // 280 мс окно для двойного клика (Mod+W)
             ipc_socket_path: socket_path,
             search_hook_script: std::env::var_os("HOME")
                 .map(|h| PathBuf::from(h).join(".config/driftglide/search-hook.sh")),

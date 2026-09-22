@@ -72,6 +72,8 @@ pub enum IpcCommand {
     FocusWindow(u64),
     GetWindows,
     LaunchApp(String),
+    CenterWindow,
+    ZoomToFit,
 }
 
 /// Клиент Unix Domain Socket IPC для driftwm
@@ -274,6 +276,38 @@ impl IpcClient {
         self.focus_window(target_id)
     }
 
+    /// Приближение / центрирование активного окна (аналог Mod+C в driftwm: action center-window)
+    pub fn center_window(&mut self) -> Result<(), String> {
+        info!("Вызов center-window для активного окна (Mod+C)");
+        let req = "{\"Action\":\"center-window\"}";
+        if let Ok(resp) = self.send_raw_request(req) {
+            debug!("Ответ на Action center-window: {}", resp.trim());
+            return Ok(());
+        }
+
+        // Фоллбэк: прямой вызов driftwm msg action center-window через CLI
+        let _ = std::process::Command::new("driftwm")
+            .args(["msg", "action", "center-window"])
+            .spawn();
+        Ok(())
+    }
+
+    /// Масштабирование холста для отображения всех окон (аналог Mod+W в driftwm: action zoom-to-fit)
+    pub fn zoom_to_fit(&mut self) -> Result<(), String> {
+        info!("Вызов zoom-to-fit для обзора всех окон (Mod+W)");
+        let req = "{\"Action\":\"zoom-to-fit\"}";
+        if let Ok(resp) = self.send_raw_request(req) {
+            debug!("Ответ на Action zoom-to-fit: {}", resp.trim());
+            return Ok(());
+        }
+
+        // Фоллбэк: прямой вызов driftwm msg action zoom-to-fit через CLI
+        let _ = std::process::Command::new("driftwm")
+            .args(["msg", "action", "zoom-to-fit"])
+            .spawn();
+        Ok(())
+    }
+
     /// Отправка общей команды
     pub fn send_command(&mut self, cmd: &IpcCommand) -> Result<(), String> {
         match cmd {
@@ -293,6 +327,8 @@ impl IpcClient {
                     .spawn();
                 Ok(())
             }
+            IpcCommand::CenterWindow => self.center_window(),
+            IpcCommand::ZoomToFit => self.zoom_to_fit(),
         }
     }
 }

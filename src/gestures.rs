@@ -18,6 +18,8 @@ pub enum GestureAction {
     OpenLauncher,
     CloseLauncher,
     StartCircleToSearch,
+    CenterWindow,
+    ZoomToFit,
     RedrawPill,
 }
 
@@ -57,6 +59,7 @@ pub struct GestureDetector {
     pub visual_state: PillVisualState,
     pub pill_animating: bool,
     last_anim_time: Option<Instant>,
+    pending_single_click: Option<Instant>,
 }
 
 impl GestureDetector {
@@ -68,6 +71,7 @@ impl GestureDetector {
             visual_state: PillVisualState::Idle,
             pill_animating: false,
             last_anim_time: None,
+            pending_single_click: None,
         }
     }
 
@@ -143,6 +147,7 @@ impl GestureDetector {
                 let deadzone_sq = self.config.deadzone_threshold * self.config.deadzone_threshold;
 
                 if dist_sq > deadzone_sq {
+                    self.pending_single_click = None;
                     if dx.abs() > dy.abs() * 1.2 {
                         let s_x = *start_x;
                         let vx = *velocity_x;
@@ -222,7 +227,7 @@ impl GestureDetector {
         }
     }
 
-    /// Проверка таймера долгого нажатия
+    /// Проверка таймера долгого нажатия и подтверждения одинарного клика
     pub fn check_timer(&mut self) -> GestureAction {
         if let State::Touching {
             start_x,
@@ -244,11 +249,23 @@ impl GestureDetector {
                     && dist_sq <= self.config.deadzone_threshold * self.config.deadzone_threshold
                 {
                     *long_press_fired = true;
+                    self.pending_single_click = None;
                     self.visual_state = PillVisualState::Triggered;
                     return GestureAction::StartCircleToSearch;
                 }
             }
         }
+
+        // Если палец/кнопка отпущены и ожидает подтверждения одиночный клик
+        if self.touch_id.is_none() {
+            if let Some(time) = self.pending_single_click {
+                if time.elapsed() >= Duration::from_millis(self.config.double_click_timeout_ms) {
+                    self.pending_single_click = None;
+                    return GestureAction::CenterWindow;
+                }
+            }
+        }
+
         GestureAction::None
     }
 
@@ -275,11 +292,28 @@ impl GestureDetector {
                     let dx = current_x - start_x;
                     let dy = current_y - start_y;
                     if dy < -self.config.swipe_y_threshold * 0.4 {
+                        self.pending_single_click = None;
                         action = GestureAction::OpenLauncher;
                     } else if dx > self.config.swipe_x_threshold || velocity_x > self.config.flick_velocity_threshold {
+                        self.pending_single_click = None;
                         action = GestureAction::FocusNext;
                     } else if dx < -self.config.swipe_x_threshold || velocity_x < -self.config.flick_velocity_threshold {
+                        self.pending_single_click = None;
                         action = GestureAction::FocusPrev;
+                    } else {
+                        // Одинарный или двойной клик по полоске
+                        if let Some(prev_time) = self.pending_single_click.take() {
+                            if prev_time.elapsed() <= Duration::from_millis(self.config.double_click_timeout_ms) {
+                                // Второй клик совершен вовремя -> Двойной клик (Mod+W / zoom-to-fit)
+                                action = GestureAction::ZoomToFit;
+                            } else {
+                                // Предыдущий клик устарел -> начинаем новый отсчет
+                                self.pending_single_click = Some(Instant::now());
+                            }
+                        } else {
+                            // Первый клик -> ждем возможного второго клика
+                            self.pending_single_click = Some(Instant::now());
+                        }
                     }
                 }
             }
@@ -338,6 +372,7 @@ impl GestureDetector {
     pub fn on_touch_cancel(&mut self, id: i32) -> GestureAction {
         if self.touch_id == Some(id) {
             self.touch_id = None;
+            self.pending_single_click = None;
             self.state = State::Idle;
             if let PillVisualState::Dragging { offset_x, offset_y } = self.visual_state {
                 if offset_x.abs() > 0.5 || offset_y.abs() > 0.5 {

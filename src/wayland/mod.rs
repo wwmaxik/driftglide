@@ -649,6 +649,16 @@ impl AppState {
                 info!("Жест: долгое нажатие -> активация Circle to Search!");
                 self.trigger_circle_to_search(qh);
             }
+            GestureAction::CenterWindow => {
+                info!("Жест: одинарный клик по полоске -> приближение/центрирование активного окна (Mod+C)");
+                let _ = self.ipc.send_command(&IpcCommand::CenterWindow);
+                self.redraw_pill(qh);
+            }
+            GestureAction::ZoomToFit => {
+                info!("Жест: двойной клик по полоске -> общий план всех окон (Mod+W / zoom-to-fit)");
+                let _ = self.ipc.send_command(&IpcCommand::ZoomToFit);
+                self.redraw_pill(qh);
+            }
         }
     }
 
