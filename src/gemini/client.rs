@@ -42,7 +42,7 @@ pub fn call_gemini(
 ) -> Result<String, String> {
     let key = api_key.trim();
     if key.is_empty() {
-        return Err("API ключ Gemini не настроен. Нажмите ⚙ в окне и введите ключ.".into());
+        return Err("API ключ Gemini не настроен. Нажмите на шестерёнку в окне и введите ключ.".into());
     }
 
     if history.is_empty() {

@@ -99,7 +99,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 6. Главный цикл обработки событий с мгновенным flush для устранения задержек
     while state.running {
-        let is_animating = state.gesture_detector.pill_animating || state.gemini_window.is_animating();
+        let is_animating = state.gesture_detector.pill_animating
+            || state.gemini_window.is_animating()
+            || state.task_switcher.is_animating();
         let timeout = if is_animating {
             Duration::from_millis(16)
         } else {
@@ -110,6 +112,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         if state.gesture_detector.pill_animating {
             state.step_pill_animation(&qh);
+        }
+
+        if state.task_switcher.is_animating() {
+            let still_animating = state.task_switcher.step_animation();
+            state.redraw_switcher(&qh);
+            if !still_animating && state.task_switcher.anim == crate::render::launcher::SwitcherAnim::None && state.task_switcher.anim_progress == 0.0 {
+                state.close_task_switcher();
+                state.redraw_pill(&qh);
+            }
         }
 
         if state.gemini_window.check_pending_response() {

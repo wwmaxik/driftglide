@@ -33,9 +33,9 @@ use xkbcommon::xkb;
 
 use crate::config::Config;
 use crate::gemini::GeminiWindow;
-use crate::gestures::{GestureAction, GestureDetector};
+use crate::gestures::{GestureAction, GestureDetector, PillVisualState};
 use crate::ipc::{IpcClient, IpcCommand};
-use crate::render::{render_gemini, LassoRenderer, PillRenderer, TaskSwitcherRenderer};
+use crate::render::{render_gemini, LassoRenderer, PillRenderer, PillSwipePreview, TaskSwitcherRenderer};
 use crate::search::CircleToSearch;
 use layer_surface::LayerSurface;
 use screencopy::ScreencopyCapture;
@@ -95,6 +95,9 @@ pub struct AppState {
     pub switcher_open: bool,
     pub search_needs_redraw: bool,
     pub last_switcher_activity: Option<std::time::Instant>,
+    pub last_pill_activity: std::time::Instant,
+    pub pill_opacity: f32,
+    pub cached_windows: Vec<crate::ipc::WindowInfo>,
     pub pending_screencopy_frame: Option<ZwlrScreencopyFrameV1>,
 }
 
@@ -155,6 +158,9 @@ impl AppState {
             switcher_open: false,
             search_needs_redraw: false,
             last_switcher_activity: None,
+            last_pill_activity: std::time::Instant::now(),
+            pill_opacity: 1.0,
+            cached_windows: Vec::new(),
             pending_screencopy_frame: None,
         }
     }
@@ -172,15 +178,76 @@ impl AppState {
             );
             info!("Создан Layer Surface для навигационной пилюли");
             self.pill_surface = Some(pill_surface);
+            self.update_pill_input_region(qh);
         }
+    }
+
+    /// Настройка области ввода для пилюли: интерактивна только нижняя зона (26px от края экрана),
+    /// чтобы верхняя область для плавающего бейджа подсказки не перехватывала клики окон
+    pub fn update_pill_input_region(&self, qh: &QueueHandle<Self>) {
+        if let (Some(compositor), Some(pill)) = (&self.compositor, &self.pill_surface) {
+            let region = compositor.create_region(qh, ());
+            let h = if pill.configured_height > 0 { pill.configured_height } else { self.config.bar_height };
+            let touch_h = 26;
+            let y = (h as i32) - touch_h;
+            region.add(0, y.max(0), i32::MAX / 2, touch_h);
+            pill.surface.set_input_region(Some(&region));
+            pill.surface.commit();
+            region.destroy();
+        }
+    }
+
+    /// Получение информации о целевом окне при горизонтальном свайпе для всплывающей подсказки
+    pub fn get_swipe_target_preview(&mut self) -> Option<PillSwipePreview> {
+        let offset_x = match self.gesture_detector.visual_state {
+            PillVisualState::Dragging { offset_x, offset_y } if offset_x.abs() >= 10.0 && offset_y.abs() < 24.0 => offset_x,
+            PillVisualState::Returning { offset_x, offset_y, .. } if offset_x.abs() >= 10.0 && offset_y.abs() < 24.0 => offset_x,
+            _ => return None,
+        };
+
+        if self.cached_windows.is_empty() {
+            self.cached_windows = self.ipc.query_open_windows();
+        }
+
+        let windows = &self.cached_windows;
+        if windows.is_empty() {
+            return None;
+        }
+
+        let is_next = offset_x > 0.0;
+        let active_idx = windows.iter().position(|w| w.is_active).unwrap_or(0);
+        let target_idx = if is_next {
+            (active_idx + 1) % windows.len()
+        } else {
+            (active_idx + windows.len() - 1) % windows.len()
+        };
+
+        let target_win = &windows[target_idx];
+        let title = if !target_win.title.is_empty() {
+            target_win.title.clone()
+        } else {
+            target_win.app_id.clone()
+        };
+
+        let threshold = self.config.swipe_x_threshold.max(1.0);
+        let progress = (offset_x.abs() / threshold).min(1.5);
+
+        Some(PillSwipePreview {
+            title,
+            is_next,
+            progress,
+            offset_x,
+        })
     }
 
     /// Перерисовка пилюли
     pub fn redraw_pill(&mut self, qh: &QueueHandle<Self>) {
         let (surface, width, height) = match &self.pill_surface {
-            Some(p) if p.configured => (&p.surface, p.configured_width, p.configured_height),
+            Some(p) if p.configured => (p.surface.clone(), p.configured_width, p.configured_height),
             _ => return,
         };
+
+        let target_preview = self.get_swipe_target_preview();
 
         let shm = match &self.shm {
             Some(s) => s,
@@ -194,6 +261,8 @@ impl AppState {
                 width,
                 height,
                 &self.gesture_detector.visual_state,
+                self.pill_opacity,
+                target_preview.as_ref(),
             );
             buf.rgba_to_argb8888();
 
@@ -206,6 +275,8 @@ impl AppState {
     /// Шаг анимации возвращения пилюли (spring physics)
     pub fn step_pill_animation(&mut self, qh: &QueueHandle<Self>) -> bool {
         if self.gesture_detector.pill_animating {
+            self.last_pill_activity = std::time::Instant::now();
+            self.pill_opacity = 1.0;
             if self.gesture_detector.step_animation() {
                 self.redraw_pill(qh);
                 return self.gesture_detector.pill_animating;
@@ -223,11 +294,7 @@ impl AppState {
         let windows = self.ipc.query_open_windows();
         let count = windows.len();
         self.task_switcher.set_windows(windows);
-
-        let item_w = 68.0;
-        let spacing = 12.0;
-        let width = (((count as f32) * (item_w + spacing) + 24.0).clamp(160.0, 960.0)) as u32;
-        let height = 76u32;
+        self.task_switcher.start_open();
 
         if let (Some(compositor), Some(layer_shell)) = (&self.compositor, &self.layer_shell) {
             let primary_output = self.outputs.first();
@@ -235,9 +302,6 @@ impl AppState {
                 compositor,
                 layer_shell,
                 primary_output,
-                width,
-                height,
-                36,
                 qh,
             );
             self.switcher_surface = Some(switcher);
@@ -247,6 +311,19 @@ impl AppState {
         }
     }
 
+    /// Запуск плавной анимации закрытия переключателя приложений
+    pub fn start_close_task_switcher(&mut self, qh: &QueueHandle<Self>) {
+        if !self.switcher_open || self.task_switcher.anim == crate::render::launcher::SwitcherAnim::Closing {
+            return;
+        }
+        if self.switcher_surface.is_none() {
+            self.close_task_switcher();
+            return;
+        }
+        self.task_switcher.start_close();
+        self.redraw_switcher(qh);
+    }
+
     /// Закрытие переключателя приложений
     pub fn close_task_switcher(&mut self) {
         if let Some(switcher) = self.switcher_surface.take() {
@@ -254,19 +331,40 @@ impl AppState {
             switcher.surface.destroy();
             self.switcher_open = false;
             self.last_switcher_activity = None;
+            self.last_pill_activity = std::time::Instant::now();
+            self.pill_opacity = 1.0;
+            self.task_switcher.anim = crate::render::launcher::SwitcherAnim::None;
+            self.task_switcher.anim_progress = 1.0;
             info!("Task Switcher закрыт");
         }
     }
 
-    /// Проверка таймаута бездействия: если меню открыто и не используется, скрываем его
+    /// Проверка таймаута бездействия: если меню открыто и не используется, скрываем его;
+    /// также плавно скрывает пилюлю при отсутствии активности пользователя
     pub fn check_idle_timeout(&mut self, qh: &QueueHandle<Self>) {
-        if self.switcher_open {
+        if self.switcher_open && self.task_switcher.anim != crate::render::launcher::SwitcherAnim::Closing {
             if let Some(last) = self.last_switcher_activity {
                 if last.elapsed() >= std::time::Duration::from_millis(self.config.switcher_idle_timeout_ms) {
                     info!("Task Switcher автоматически скрыт по таймауту неактивности ({} мс)", self.config.switcher_idle_timeout_ms);
-                    self.close_task_switcher();
+                    self.start_close_task_switcher(qh);
+                }
+            }
+        }
+
+        // Плавное скрытие пилюли в простое (auto-hide idle)
+        if self.config.pill_idle_timeout_ms > 0
+            && self.gesture_detector.visual_state == PillVisualState::Idle
+            && !self.gesture_detector.pill_animating
+            && !self.switcher_open
+        {
+            if self.last_pill_activity.elapsed() >= std::time::Duration::from_millis(self.config.pill_idle_timeout_ms) {
+                if self.pill_opacity > 0.0 {
+                    self.pill_opacity = (self.pill_opacity - 0.08).max(0.0);
                     self.redraw_pill(qh);
                 }
+            } else if self.pill_opacity < 1.0 {
+                self.pill_opacity = (self.pill_opacity + 0.15).min(1.0);
+                self.redraw_pill(qh);
             }
         }
     }
@@ -285,6 +383,14 @@ impl AppState {
 
     /// Определение типа курсора в зависимости от координат мыши
     pub fn determine_cursor(&self, fx: f32, fy: f32) -> &'static str {
+        if self.switcher_open && self.task_switcher.anim != crate::render::launcher::SwitcherAnim::Closing {
+            if let Some(switcher) = &self.switcher_surface {
+                if self.task_switcher.hit_test(fx, fy, switcher.configured_width, switcher.configured_height).is_some() {
+                    return "pointer";
+                }
+            }
+        }
+
         let is_search = self.search_surface.as_ref().map_or(false, |o| {
             self.pointer_surface.as_ref() == Some(&o.surface)
         });
@@ -520,11 +626,13 @@ impl AppState {
             }
             GestureAction::FocusNext => {
                 info!("Жест: свайп вправо -> focus_next");
+                self.cached_windows.clear();
                 let _ = self.ipc.send_command(&IpcCommand::FocusNext);
                 self.redraw_pill(qh);
             }
             GestureAction::FocusPrev => {
                 info!("Жест: свайп влево -> focus_prev");
+                self.cached_windows.clear();
                 let _ = self.ipc.send_command(&IpcCommand::FocusPrev);
                 self.redraw_pill(qh);
             }
@@ -535,8 +643,7 @@ impl AppState {
             }
             GestureAction::CloseLauncher => {
                 info!("Закрытие Task Switcher");
-                self.close_task_switcher();
-                self.redraw_pill(qh);
+                self.start_close_task_switcher(qh);
             }
             GestureAction::StartCircleToSearch => {
                 info!("Жест: долгое нажатие -> активация Circle to Search!");
@@ -789,21 +896,30 @@ impl Dispatch<WlTouch, ()> for AppState {
                 let is_search = state.search_surface.as_ref().map_or(false, |o| o.surface == surface);
 
                 if is_pill {
+                    state.cached_windows = state.ipc.query_open_windows();
+                    state.last_pill_activity = std::time::Instant::now();
+                    if state.pill_opacity < 1.0 {
+                        state.pill_opacity = 1.0;
+                        state.redraw_pill(qh);
+                    }
                     let action = state.gesture_detector.on_touch_down(id, x as f32, y as f32);
                     state.handle_gesture_action(action, qh);
                 } else if is_switcher {
-                    if let Some(switcher) = &state.switcher_surface {
-                        if let Some(win) = state.task_switcher.hit_test(
-                            x as f32,
-                            y as f32,
-                            switcher.configured_width,
-                            switcher.configured_height,
-                        ) {
-                            info!("Тап по окну: {} ({})", win.title, win.id);
-                            let _ = state.ipc.send_command(&IpcCommand::FocusWindow(win.id));
+                    if state.task_switcher.anim != crate::render::launcher::SwitcherAnim::Closing {
+                        if let Some(switcher) = &state.switcher_surface {
+                            if let Some(win) = state.task_switcher.hit_test(
+                                x as f32,
+                                y as f32,
+                                switcher.configured_width,
+                                switcher.configured_height,
+                            ) {
+                                info!("Тап по окну: {} ({})", win.title, win.id);
+                                let _ = state.ipc.send_command(&IpcCommand::FocusWindow(win.id));
+                            } else {
+                                info!("Тап вне окон Task Switcher -> закрытие");
+                            }
+                            state.start_close_task_switcher(qh);
                         }
-                        state.close_task_switcher();
-                        state.redraw_pill(qh);
                     }
                 } else if is_search && state.circle_to_search.active {
                     let fx = x as f32;
@@ -919,6 +1035,11 @@ impl Dispatch<WlTouch, ()> for AppState {
                         state.search_needs_redraw = true;
                     }
                 } else {
+                    state.last_pill_activity = std::time::Instant::now();
+                    if state.pill_opacity < 1.0 {
+                        state.pill_opacity = 1.0;
+                        state.redraw_pill(qh);
+                    }
                     let action = state.gesture_detector.on_touch_motion(id, fx, fy);
                     state.handle_gesture_action(action, qh);
                 }
@@ -946,6 +1067,7 @@ impl Dispatch<WlTouch, ()> for AppState {
                         state.redraw_search(qh);
                     }
                 } else {
+                    state.last_pill_activity = std::time::Instant::now();
                     let action = state.gesture_detector.on_touch_up(id);
                     state.handle_gesture_action(action, qh);
                 }
@@ -978,6 +1100,14 @@ impl Dispatch<WlPointer, ()> for AppState {
     ) {
         match event {
             wl_pointer::Event::Enter { serial, surface, surface_x, surface_y, .. } => {
+                let is_pill = state.pill_surface.as_ref().map_or(false, |p| p.surface == surface);
+                if is_pill {
+                    state.last_pill_activity = std::time::Instant::now();
+                    if state.pill_opacity < 1.0 {
+                        state.pill_opacity = 1.0;
+                        state.redraw_pill(qh);
+                    }
+                }
                 state.pointer_surface = Some(surface);
                 state.pointer_x = surface_x;
                 state.pointer_y = surface_y;
@@ -1000,6 +1130,15 @@ impl Dispatch<WlPointer, ()> for AppState {
 
                 if state.switcher_open && state.switcher_surface.as_ref().map_or(false, |s| state.pointer_surface.as_ref() == Some(&s.surface)) {
                     state.last_switcher_activity = Some(std::time::Instant::now());
+                }
+
+                let is_pill = state.pill_surface.as_ref().map_or(false, |p| state.pointer_surface.as_ref() == Some(&p.surface));
+                if is_pill {
+                    state.last_pill_activity = std::time::Instant::now();
+                    if state.pill_opacity < 1.0 {
+                        state.pill_opacity = 1.0;
+                        state.redraw_pill(qh);
+                    }
                 }
 
                 if state.pointer_pressed {
@@ -1092,21 +1231,30 @@ impl Dispatch<WlPointer, ()> for AppState {
 
                     if pressed {
                         if is_pill {
+                            state.cached_windows = state.ipc.query_open_windows();
+                            state.last_pill_activity = std::time::Instant::now();
+                            if state.pill_opacity < 1.0 {
+                                state.pill_opacity = 1.0;
+                                state.redraw_pill(qh);
+                            }
                             let action = state.gesture_detector.on_touch_down(0, fx, fy);
                             state.handle_gesture_action(action, qh);
                         } else if is_switcher {
-                            if let Some(switcher) = &state.switcher_surface {
-                                if let Some(win) = state.task_switcher.hit_test(
-                                    fx,
-                                    fy,
-                                    switcher.configured_width,
-                                    switcher.configured_height,
-                                ) {
-                                    info!("Клик по окну в Switcher: {} ({})", win.title, win.id);
-                                    let _ = state.ipc.send_command(&IpcCommand::FocusWindow(win.id));
+                            if state.task_switcher.anim != crate::render::launcher::SwitcherAnim::Closing {
+                                if let Some(switcher) = &state.switcher_surface {
+                                    if let Some(win) = state.task_switcher.hit_test(
+                                        fx,
+                                        fy,
+                                        switcher.configured_width,
+                                        switcher.configured_height,
+                                    ) {
+                                        info!("Клик по окну в Switcher: {} ({})", win.title, win.id);
+                                        let _ = state.ipc.send_command(&IpcCommand::FocusWindow(win.id));
+                                    } else {
+                                        info!("Клик вне окон Task Switcher -> закрытие");
+                                    }
+                                    state.start_close_task_switcher(qh);
                                 }
-                                state.close_task_switcher();
-                                state.redraw_pill(qh);
                             }
                         } else if is_search && state.circle_to_search.active {
                             // 1. Проверяем взаимодействие с окном Gemini
@@ -1258,6 +1406,7 @@ impl Dispatch<WlPointer, ()> for AppState {
                                 state.redraw_search(qh);
                             }
                         } else {
+                            state.last_pill_activity = std::time::Instant::now();
                             let action = state.gesture_detector.on_touch_up(0);
                             state.handle_gesture_action(action, qh);
                         }
@@ -1269,8 +1418,7 @@ impl Dispatch<WlPointer, ()> for AppState {
                         state.redraw_search(qh);
                     } else if state.switcher_open {
                         info!("Закрытие Task Switcher по нажатию ПКМ");
-                        state.close_task_switcher();
-                        state.redraw_pill(qh);
+                        state.start_close_task_switcher(qh);
                     }
                 }
             }
@@ -1457,6 +1605,7 @@ impl Dispatch<ZwlrLayerSurfaceV1, ()> for AppState {
                         pill.configured_width = width;
                         pill.configured_height = height;
                         pill.configured = true;
+                        state.update_pill_input_region(qh);
                         state.redraw_pill(qh);
                         return;
                     }

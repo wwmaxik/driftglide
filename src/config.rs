@@ -33,6 +33,8 @@ pub struct Config {
 
     /// Время неактивности меню открытых окон до автоматического скрытия (мс)
     pub switcher_idle_timeout_ms: u64,
+    /// Время неактивности навигационной пилюли до автоматического скрытия (мс, 0 = не скрывать)
+    pub pill_idle_timeout_ms: u64,
 
     /// Путь к Unix-сокету driftwm
     pub ipc_socket_path: PathBuf,
@@ -96,7 +98,7 @@ impl Default for Config {
         });
 
         Self {
-            bar_height: 28,
+            bar_height: 52,
             pill_width: 140.0,
             pill_height: 5.0,
             pill_radius: 2.5,
@@ -110,6 +112,7 @@ impl Default for Config {
             long_press_duration_ms: 420,
             deadzone_threshold: 7.0,
             switcher_idle_timeout_ms: 3500, // 3.5 секунды авто-скрытия при бездействии
+            pill_idle_timeout_ms: 2500,     // 2.5 секунды до скрытия пилюли в простое
             ipc_socket_path: socket_path,
             search_hook_script: std::env::var_os("HOME")
                 .map(|h| PathBuf::from(h).join(".config/driftglide/search-hook.sh")),

@@ -683,3 +683,38 @@ pub fn render_markdown(
         );
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::ThemeConfig;
+    use crate::render::text::TextRenderer;
+
+    #[test]
+    fn test_markdown_layout_and_render() {
+        let renderer = TextRenderer::new();
+        let theme = ThemeConfig::default();
+        let text = "# Заголовок\n\nЭто **жирный** текст и *курсив*, а также `код`.\n- Пункт 1\n- Пункт 2";
+
+        let layout = layout_markdown(&renderer, text, 400.0, &theme);
+        assert!(!layout.spans.is_empty(), "Markdown should produce spans");
+        assert!(layout.total_height > 0.0, "Total height should be positive");
+
+        let mut pixmap = Pixmap::new(400, 300).expect("Failed to create pixmap");
+        let clip_rect = [0.0, 0.0, 400.0, 300.0];
+        render_markdown(
+            &renderer,
+            &layout,
+            &mut pixmap.as_mut(),
+            10.0,
+            10.0,
+            clip_rect,
+            0.0,
+            None,
+        );
+
+        let has_non_zero = pixmap.data().iter().any(|&b| b > 0);
+        assert!(has_non_zero, "Pixels should be drawn for rendered markdown");
+    }
+}
+

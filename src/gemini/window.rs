@@ -271,7 +271,7 @@ impl GeminiWindow {
 
         // Не отправляем запрос автоматически — ожидаем ввод вопроса от пользователя
         if self.api_key.trim().is_empty() {
-            self.current_response = "Нажмите ⚙ в верхнем правом углу, чтобы указать ваш Gemini API Key.".into();
+            self.current_response = "Нажмите на шестерёнку в верхнем правом углу, чтобы указать ваш Gemini API Key.".into();
         } else {
             self.current_response = "Задайте вопрос о выделенной области экрана в поле ниже...".into();
         }
@@ -709,7 +709,7 @@ impl GeminiWindow {
     pub fn build_chat_markdown(&self) -> String {
         if self.chat_history.is_empty() {
             if self.api_key.trim().is_empty() {
-                return "Нажмите ⚙ в верхнем правом углу, чтобы указать ваш Gemini API Key.".to_string();
+                return "Нажмите на шестерёнку в верхнем правом углу, чтобы указать ваш Gemini API Key.".to_string();
             } else {
                 return "Задайте вопрос о выделенной области экрана в поле ниже...".to_string();
             }
@@ -721,7 +721,7 @@ impl GeminiWindow {
                 md.push_str("\n\n---\n\n");
             }
             if turn.role == "user" {
-                md.push_str("> **👤 Вы:**\n");
+                md.push_str("> **Вы:**\n");
                 for line in turn.text.lines() {
                     md.push_str("> ");
                     md.push_str(line);

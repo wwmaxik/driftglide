@@ -11,7 +11,7 @@ pub use lasso::{BoundingBox, LassoRenderer};
 pub use launcher::TaskSwitcherRenderer;
 #[allow(unused_imports)]
 pub use markdown::{layout_markdown, render_markdown, MarkdownLayout};
-pub use pill::PillRenderer;
+pub use pill::{PillRenderer, PillSwipePreview};
 #[allow(unused_imports)]
 pub use text::TextRenderer;
 

@@ -56,14 +56,12 @@ impl LayerSurface {
         }
     }
 
-    /// Создает компактный всплывающий Dock / Task Switcher прямо над пилюлей
+    /// Создает Dock / Task Switcher в виде полноэкранного оверлея
+    /// (позволяет отслеживать клики вне дока для закрытия)
     pub fn new_task_switcher_dock<D: 'static>(
         compositor: &WlCompositor,
         layer_shell: &ZwlrLayerShellV1,
         output: Option<&WlOutput>,
-        width: u32,
-        height: u32,
-        margin_bottom: i32,
         qh: &QueueHandle<D>,
     ) -> Self
     where
@@ -80,10 +78,9 @@ impl LayerSurface {
             (),
         );
 
-        // Якорь только к низу экрана: композитор сам центрирует плашку по горизонтали
-        layer_surface.set_anchor(Anchor::Bottom);
-        layer_surface.set_size(width, height);
-        layer_surface.set_margin(0, 0, margin_bottom, 0);
+        // Полноэкранный прозрачный оверлей для перехвата кликов мимо дока (click outside to close)
+        layer_surface.set_anchor(Anchor::Top | Anchor::Bottom | Anchor::Left | Anchor::Right);
+        layer_surface.set_size(0, 0);
         layer_surface.set_exclusive_zone(-1);
         layer_surface.set_keyboard_interactivity(KeyboardInteractivity::OnDemand);
 
@@ -92,8 +89,8 @@ impl LayerSurface {
         Self {
             surface,
             layer_surface,
-            configured_width: width,
-            configured_height: height,
+            configured_width: 0,
+            configured_height: 0,
             configured: false,
         }
     }
